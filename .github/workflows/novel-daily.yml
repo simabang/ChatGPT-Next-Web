@@ -1,0 +1,44 @@
+name: Novel Daily Writer
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 1 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate chapters
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          NOVEL_TITLE: ${{ vars.NOVEL_TITLE }}
+          NOVEL_GENRE: ${{ vars.NOVEL_GENRE }}
+          NOVEL_TARGET_WORDS: ${{ vars.NOVEL_TARGET_WORDS }}
+          NOVEL_MAX_CHAPTERS: ${{ vars.NOVEL_MAX_CHAPTERS }}
+        run: node scripts/novel-runner.mjs
+
+      - name: Commit and push novel updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add novel/**
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "chore(novel): daily auto writing $(date +%F)"
+          git push
